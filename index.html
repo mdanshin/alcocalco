@@ -1,0 +1,1542 @@
+<!doctype html>
+<html lang="ru">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Взаиморасчёты по тратам — кассовый аппарат</title>
+  <style>
+    :root {
+      --bg0: #050814;
+      --bg1: #050a16;
+      --card: rgba(255, 255, 255, .06);
+      --card-deep: rgba(0, 0, 0, .55);
+      --border: rgba(255, 255, 255, .14);
+      --border-soft: rgba(255, 255, 255, .08);
+      --text: #E9F0FF;
+      --muted: #9AA6C9;
+      --accent: #06B6D4;
+      --accent2: #7C3AED;
+      --danger: #F97373;
+      --radius-lg: 22px;
+      --radius-md: 18px;
+      --shadow-strong: 0 24px 80px rgba(0, 0, 0, .65);
+      --shadow-soft: 0 16px 44px rgba(0, 0, 0, .55);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(900px 600px at 10% 0%, rgba(124, 58, 237, .28), transparent 60%),
+        radial-gradient(900px 600px at 90% 0%, rgba(6, 182, 212, .26), transparent 60%),
+        radial-gradient(1200px 700px at 50% 100%, rgba(34, 197, 94, .22), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .55;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, .04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, .04) 1px, transparent 1px);
+      background-size: 42px 42px, 42px 42px;
+      mix-blend-mode: soft-light;
+      mask-image: radial-gradient(circle at 50% 20%, rgba(0, 0, 0, 1), rgba(0, 0, 0, 0));
+      animation: gridShift 28s linear infinite;
+    }
+
+    @keyframes gridShift {
+      0% {
+        transform: translate3d(0, 0, 0);
+      }
+
+      100% {
+        transform: translate3d(-42px, -42px, 0);
+      }
+    }
+
+    .app {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 18px 16px 26px;
+      position: relative;
+      z-index: 1;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(18px);
+      background: linear-gradient(180deg, rgba(5, 8, 20, .92), rgba(5, 8, 20, .70));
+      border-bottom: 1px solid rgba(255, 255, 255, .08);
+    }
+
+    header .inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 14px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 16px;
+      background:
+        radial-gradient(circle at 25% 20%, rgba(255, 255, 255, .9), transparent 55%),
+        conic-gradient(from 210deg, rgba(124, 58, 237, .95), rgba(6, 182, 212, .95), rgba(34, 197, 94, .9), rgba(251, 191, 36, .95), rgba(124, 58, 237, .95));
+      border: 1px solid rgba(255, 255, 255, .3);
+      box-shadow: 0 20px 70px rgba(0, 0, 0, .7);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .brand-logo::after {
+      content: "";
+      position: absolute;
+      inset: -60%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .55), transparent);
+      transform: rotate(18deg) translateX(-20%);
+      animation: shine 5s ease-in-out infinite;
+    }
+
+    @keyframes shine {
+      0% {
+        transform: rotate(18deg) translateX(-40%);
+        opacity: 0;
+      }
+
+      20% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0;
+      }
+
+      100% {
+        transform: rotate(18deg) translateX(40%);
+        opacity: 0;
+      }
+    }
+
+    .brand-text h1 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: .4px;
+    }
+
+    .brand-text p {
+      margin: 3px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .header-pill {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, .45);
+      background: rgba(15, 23, 42, .85);
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 99px;
+      background: #22C55E;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, .35);
+    }
+
+    main {
+      margin-top: 18px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr);
+      gap: 18px;
+      align-items: flex-start;
+    }
+
+    @media(max-width:1060px) {
+      .layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .panel {
+      background: linear-gradient(135deg, rgba(15, 23, 42, .96), rgba(15, 23, 42, .88));
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(148, 163, 184, .55);
+      box-shadow: var(--shadow-strong);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      pointer-events: none;
+      background:
+        radial-gradient(700px 360px at 0% 0%, rgba(124, 58, 237, .24), transparent 65%),
+        radial-gradient(520px 280px at 100% 0%, rgba(6, 182, 212, .24), transparent 65%),
+        radial-gradient(520px 260px at 50% 100%, rgba(34, 197, 94, .18), transparent 65%);
+      opacity: .9;
+      mix-blend-mode: soft-light;
+    }
+
+    .panel-content {
+      position: relative;
+      padding: 16px 16px 18px;
+    }
+
+    h2.title {
+      margin: 0 0 4px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: .35px;
+      font-weight: 800;
+      color: var(--muted);
+    }
+
+    p.lead {
+      margin: 0 0 12px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .register-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.95fr);
+      gap: 14px;
+      align-items: stretch;
+      margin-top: 8px;
+    }
+
+    @media(max-width:1100px) {
+      .register-layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .card {
+      background: radial-gradient(circle at 0 0, rgba(148, 163, 184, .16), transparent 55%), rgba(15, 23, 42, .98);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(148, 163, 184, .55);
+      box-shadow: var(--shadow-soft);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-inner {
+      position: relative;
+      padding: 14px;
+    }
+
+    .screen {
+      background: radial-gradient(circle at 10% 0, rgba(56, 189, 248, .25), transparent 55%), #020617;
+      border-radius: 18px;
+      border: 1px solid rgba(56, 189, 248, .45);
+      padding: 10px 12px 12px;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, .75), inset 0 0 0 1px rgba(15, 23, 42, .9);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .screen-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: rgba(148, 163, 184, .95);
+    }
+
+    .screen-main {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-top: 4px;
+    }
+
+    .screen-amount {
+      font-size: 28px;
+      font-weight: 900;
+      text-shadow: 0 0 24px rgba(56, 189, 248, .45);
+    }
+
+    .screen-amount small {
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(148, 163, 184, .95);
+      margin-left: 6px;
+    }
+
+    .field-grid {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    @media(max-width:600px) {
+      .field-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .25px;
+    }
+
+    .field input,
+    .field select {
+      padding: 9px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, .6);
+      background: rgba(15, 23, 42, .9);
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      min-height: 34px;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: rgba(56, 189, 248, .8);
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, .4);
+    }
+
+    .field input::placeholder {
+      color: rgba(148, 163, 184, .75);
+    }
+
+    .field-full {
+      grid-column: 1/-1;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .btn {
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(148, 163, 184, .3), rgba(15, 23, 42, 1));
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 9px 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+      box-shadow: 0 14px 40px rgba(15, 23, 42, .9);
+      transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(148, 163, 184, .9);
+      box-shadow: 0 18px 60px rgba(15, 23, 42, 1);
+    }
+
+    .btn:active {
+      transform: translateY(0) scale(.98);
+    }
+
+    .btn-primary {
+      border-color: rgba(56, 189, 248, .95);
+      background: linear-gradient(135deg, rgba(56, 189, 248, .9), rgba(37, 99, 235, .95));
+      box-shadow: 0 20px 60px rgba(37, 99, 235, .85);
+    }
+
+    .btn-danger {
+      border-color: rgba(239, 68, 68, .9);
+      background: linear-gradient(135deg, rgba(239, 68, 68, .9), rgba(127, 29, 29, 1));
+    }
+
+    .btn-sm {
+      padding: 7px 10px;
+      font-size: 11px;
+    }
+
+    .keypad {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(148, 163, 184, .45);
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .key {
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, .8);
+      padding: 9px 0;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+      background: radial-gradient(circle at 0 0, rgba(148, 163, 184, .4), transparent 60%), #020617;
+      box-shadow: 0 10px 26px rgba(0, 0, 0, .75);
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .key.fn {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .key.enter {
+      grid-column: span 2;
+      background: linear-gradient(135deg, rgba(56, 189, 248, .8), rgba(59, 130, 246, .95));
+      border-color: rgba(56, 189, 248, .95);
+    }
+
+    .key:hover {
+      transform: translateY(-1px);
+    }
+
+    .key:active {
+      transform: translateY(0) scale(.97);
+    }
+
+    .receipt-shell {
+      background: radial-gradient(circle at 0 0, rgba(148, 163, 184, .12), transparent 55%), rgba(5, 8, 22, .98);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(148, 163, 184, .6);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .receipt-inner {
+      padding: 14px 14px 16px;
+    }
+
+    .receipt-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .receipt-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
+
+    .paper {
+      background: #F5F1EB;
+      color: #111827;
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, .7);
+      padding: 18px 12px 16px;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.3;
+      max-height: 320px;
+      overflow: auto;
+      position: relative;
+      box-shadow: 0 16px 44px rgba(0, 0, 0, .65);
+    }
+
+    .paper::before,
+    .paper::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 26px;
+      opacity: .7;
+      background-size: 18px 26px;
+      z-index: 1;
+    }
+
+    .paper::before {
+      top: 0;
+      background: radial-gradient(circle at 9px 13px, rgba(30, 64, 175, .4) 2px, transparent 3px) 0 0/18px 26px repeat-x;
+    }
+
+    .paper::after {
+      bottom: 0;
+      background: radial-gradient(circle at 9px 13px, rgba(30, 64, 175, .4) 2px, transparent 3px) 0 0/18px 26px repeat-x;
+    }
+
+    .receipt-body {
+      position: relative;
+      z-index: 2;
+      white-space: pre-wrap;
+    }
+
+    .receipt-footer {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .expenses-section {
+      margin-top: 16px;
+    }
+
+    table.list {
+      width: 100%;
+      border-collapse: collapse;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, .6);
+      background: rgba(15, 23, 42, .98);
+    }
+
+    table.list th,
+    table.list td {
+      padding: 8px 9px;
+      font-size: 12px;
+      border-bottom: 1px solid rgba(148, 163, 184, .4);
+      vertical-align: top;
+    }
+
+    table.list th {
+      background: rgba(15, 23, 42, 1);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .25px;
+      font-size: 11px;
+    }
+
+    table.list tr:last-child td {
+      border-bottom: none;
+    }
+
+    table.list tbody tr:hover td {
+      background: rgba(15, 23, 42, .9);
+    }
+
+    .mono {
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .right {
+      text-align: right;
+    }
+
+    .balances {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .bcard {
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, .7);
+      background: radial-gradient(circle at 0 0, rgba(148, 163, 184, .22), transparent 55%), rgba(15, 23, 42, .98);
+      padding: 10px 12px;
+      font-size: 12px;
+    }
+
+    .bcard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .bcard-name {
+      font-weight: 700;
+    }
+
+    .badge {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, .8);
+      padding: 4px 9px;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .badge-pos {
+      border-color: rgba(34, 197, 94, .9);
+      background: rgba(22, 163, 74, .2);
+    }
+
+    .badge-neg {
+      border-color: rgba(239, 68, 68, .9);
+      background: rgba(185, 28, 28, .18);
+    }
+
+    .badge-zero {
+      border-color: rgba(148, 163, 184, .9);
+      background: rgba(30, 64, 175, .2);
+    }
+
+    .bcard-line {
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .bar-wrap {
+      margin-top: 6px;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 1);
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, .8);
+    }
+
+    .bar {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(56, 189, 248, 1), rgba(129, 140, 248, 1));
+    }
+
+    .section-title {
+      margin: 12px 0 4px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+      color: var(--muted);
+    }
+
+    .note {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      background: rgba(15, 23, 42, .9);
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, .7);
+      padding: 9px 10px;
+    }
+
+    .settlement-table {
+      margin-top: 6px;
+    }
+
+    .row-actions {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .pill-small {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, .7);
+      padding: 4px 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .consumers-box {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .consumers-box label {
+      font-size: 11px;
+      color: var(--muted);
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, .7);
+      padding: 4px 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(15, 23, 42, .9);
+      cursor: pointer;
+    }
+
+    .consumers-box input {
+      margin: 0;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="grid-bg" aria-hidden="true"></div>
+
+  <header>
+    <div class="inner">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true"></div>
+        <div class="brand-text">
+          <h1>Взаиморасчёты по тратам</h1>
+          <p>Вводишь, кто сколько заплатил и на кого делим — касса сама считает, кто кому должен.</p>
+        </div>
+      </div>
+      <div class="header-pill">
+        <span class="header-dot"></span>
+        <span>Данные автоматически сохраняются в браузере</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="app">
+    <main class="layout">
+      <!-- ЛЕВАЯ ПАНЕЛЬ: касса, чек, список покупок -->
+      <section class="panel">
+        <div class="panel-content">
+          <h2 class="title">Кассовый аппарат (ввод покупки)</h2>
+          <p class="lead">Покупка = кто платил, сколько заплатил и на кого делим. Из этого касса сама посчитает, кто
+            кому должен.</p>
+
+          <div class="register-layout">
+            <!-- КАССОВЫЙ БЛОК -->
+            <div class="card">
+              <div class="card-inner">
+                <div class="screen" id="screen">
+                  <div class="screen-top">
+                    <span id="screenLine">Готово к работе</span>
+                    <span id="screenClock">--:--:--</span>
+                  </div>
+                  <div class="screen-main">
+                    <div class="screen-amount"><span id="screenAmount">0</span><small>₽</small></div>
+                  </div>
+                </div>
+
+                <div class="field-grid" style="margin-top:10px;">
+                  <div class="field">
+                    <label for="payerSel">Кто платил</label>
+                    <select id="payerSel"></select>
+                  </div>
+                  <div class="field">
+                    <label for="dateInp">Дата</label>
+                    <input id="dateInp" type="text" placeholder="сегодня" />
+                  </div>
+                  <div class="field">
+                    <label for="categorySel">Категория</label>
+                    <select id="categorySel"></select>
+                  </div>
+                  <div class="field">
+                    <label for="reasonInp">Комментарий / что купили</label>
+                    <input id="reasonInp" type="text" placeholder="например: алкоголь / пицца / бар" />
+                  </div>
+                  <div class="field field-full">
+                    <label>На кого делим</label>
+                    <div id="consumersBox" class="consumers-box"></div>
+                  </div>
+                  <div class="field field-full">
+                    <label>Быстро добавить участника</label>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                      <input id="newPersonInp" type="text" placeholder="имя… (например, Лёша П.)"
+                        style="flex:1;min-width:140px;" />
+                      <button id="btnAddPerson" class="btn btn-sm" type="button">Добавить</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="chip-row">
+                  <span class="pill-small">Enter = добавить покупку</span>
+                  <span class="pill-small">Esc = очистить сумму</span>
+                  <span class="pill-small">Backspace = стереть символ</span>
+                </div>
+
+                <div class="keypad" aria-label="Клавиатура кассы">
+                  <div class="key fn" data-key="C">C</div>
+                  <div class="key fn" data-key="BS">⌫</div>
+                  <div class="key fn" data-key=".">,</div>
+                  <div class="key fn" data-key="00">00</div>
+
+                  <div class="key" data-key="7">7</div>
+                  <div class="key" data-key="8">8</div>
+                  <div class="key" data-key="9">9</div>
+                  <div class="key fn" data-key="TODAY">⟳</div>
+
+                  <div class="key" data-key="4">4</div>
+                  <div class="key" data-key="5">5</div>
+                  <div class="key" data-key="6">6</div>
+                  <div class="key fn" data-key="ALL">ВСЕ</div>
+
+                  <div class="key" data-key="1">1</div>
+                  <div class="key" data-key="2">2</div>
+                  <div class="key" data-key="3">3</div>
+                  <div class="key fn" data-key="NONE">НЕТ</div>
+
+                  <div class="key" data-key="0">0</div>
+                  <div class="key fn" data-key="X2">×2</div>
+                  <div class="key enter" data-key="ENTER">Добавить (Enter)</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ЭМУЛЯТОР ЧЕКА -->
+            <div class="receipt-shell">
+              <div class="receipt-inner">
+                <div class="receipt-header">
+                  <div>
+                    <div class="receipt-title">Эмулятор чека</div>
+                    <div style="font-size:11px;color:var(--muted);">Печатает покупки и итоговый взаимозачёт</div>
+                  </div>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+                    <button id="btnPrintSettlement" class="btn btn-sm btn-primary" type="button">Чек
+                      взаимозачёта</button>
+                    <button id="btnClearReceipt" class="btn btn-sm" type="button">Очистить ленту</button>
+                  </div>
+                </div>
+                <div class="paper">
+                  <div id="receiptBody" class="receipt-body"></div>
+                </div>
+                <div class="receipt-footer">
+                  <span id="receiptStats">—</span>
+                  <span>★ лента хранится только у тебя в браузере</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- СПИСОК ПОКУПОК -->
+          <div class="expenses-section">
+            <div class="section-title">Покупки</div>
+            <table class="list" aria-label="Список покупок">
+              <thead>
+                <tr>
+                  <th style="width:86px;">Дата</th>
+                  <th>Кто платил</th>
+                  <th class="right" style="width:110px;">Сумма</th>
+                  <th>Категория / описание</th>
+                  <th style="width:150px;">Делим на</th>
+                  <th style="width:70px;" class="right">Удалить</th>
+                </tr>
+              </thead>
+              <tbody id="expensesTbody"></tbody>
+            </table>
+            <div class="row-actions">
+              <button id="btnDemo" class="btn btn-sm" type="button">Заполнить демо</button>
+              <button id="btnClearExpenses" class="btn btn-sm btn-danger" type="button">Удалить все покупки</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ПРАВАЯ ПАНЕЛЬ: итоги и переводы -->
+      <aside class="panel">
+        <div class="panel-content">
+          <h2 class="title">Итоги и взаимозачёт</h2>
+          <p class="lead">Считаем, кто по факту переплатил, кто недоплатил и какие переводы нужны, чтобы все оказались в
+            нуле.</p>
+
+          <div class="section-title">Сводка по компании</div>
+          <div class="balances" id="balancesBox"></div>
+
+          <div class="note" id="summaryNote">Пока покупок нет.</div>
+
+          <div class="section-title" style="margin-top:12px;">Рекомендуемые переводы</div>
+          <table class="list settlement-table" aria-label="Рекомендуемые переводы">
+            <thead>
+              <tr>
+                <th>Кто платит</th>
+                <th>Кому</th>
+                <th class="right" style="width:110px;">Сумма</th>
+                <th>Комментарий</th>
+              </tr>
+            </thead>
+            <tbody id="settlementTbody"></tbody>
+          </table>
+
+          <div class="note" style="margin-top:10px;">
+            Алгоритм старается сделать как можно меньше переводов: самые крупные долги закрываются самыми крупными
+            требованиями. Сумма балансов всех участников всегда равна нулю (с точностью до копеек).
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      const STORAGE_KEY = "expense_splitter_cash_v2";
+
+      const DEFAULT_STATE = {
+        people: ["Миша", "Дима", "Валерия", "Лёша К.", "Лёша Г."],
+        categories: ["алкоголь", "снэки", "бар/кафе", "пицца/еда", "такси", "прочее"],
+        expenses: [],
+        receipt: ""
+      };
+
+      const fmt = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 });
+      const fmtRub = n => `${fmt.format(Number(n || 0))} ₽`;
+
+      // DOM
+      const payerSel = document.getElementById("payerSel");
+      const dateInp = document.getElementById("dateInp");
+      const categorySel = document.getElementById("categorySel");
+      const reasonInp = document.getElementById("reasonInp");
+      const consumersBox = document.getElementById("consumersBox");
+      const newPersonInp = document.getElementById("newPersonInp");
+      const btnAddPerson = document.getElementById("btnAddPerson");
+
+      const screenAmount = document.getElementById("screenAmount");
+      const screenLine = document.getElementById("screenLine");
+      const screenClock = document.getElementById("screenClock");
+
+      const expensesTbody = document.getElementById("expensesTbody");
+      const balancesBox = document.getElementById("balancesBox");
+      const settlementTbody = document.getElementById("settlementTbody");
+      const summaryNote = document.getElementById("summaryNote");
+
+      const receiptBody = document.getElementById("receiptBody");
+      const receiptStats = document.getElementById("receiptStats");
+
+      const btnPrintSettlement = document.getElementById("btnPrintSettlement");
+      const btnClearReceipt = document.getElementById("btnClearReceipt");
+      const btnDemo = document.getElementById("btnDemo");
+      const btnClearExpenses = document.getElementById("btnClearExpenses");
+
+      const keypadButtons = Array.from(document.querySelectorAll(".key"));
+
+      // state
+      let state = loadState();
+      let amountBuffer = "0";
+
+      // helpers
+      const nowIso = () => {
+        const d = new Date();
+        const pad = x => String(x).padStart(2, "0");
+        return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+      };
+      const uid = () => Math.random().toString(16).slice(2) + Math.random().toString(16).slice(2);
+      const round2 = n => Math.round((Number(n) || 0) * 100 + Number.EPSILON) / 100;
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return structuredClone(DEFAULT_STATE);
+          const json = JSON.parse(raw);
+          return normalize(json);
+        } catch (e) {
+          return structuredClone(DEFAULT_STATE);
+        }
+      }
+
+      function normalize(json) {
+        const people = Array.isArray(json.people) ? json.people.map(String).filter(Boolean) : DEFAULT_STATE.people.slice();
+        const categories = Array.isArray(json.categories) ? json.categories.map(String).filter(Boolean) : DEFAULT_STATE.categories.slice();
+
+        let expenses = [];
+        if (Array.isArray(json.expenses)) {
+          expenses = json.expenses.map(e => ({
+            id: e.id ? String(e.id) : uid(),
+            ts: Number(e.ts) || Date.now(),
+            date: e.date ? String(e.date) : nowIso(),
+            payer: String(e.payer || ""),
+            amount: round2(e.amount),
+            reason: e.reason ? String(e.reason) : "",
+            category: e.category ? String(e.category) : "",
+            consumers: Array.isArray(e.consumers) ? e.consumers.map(String).filter(Boolean) : []
+          })).filter(e => e.payer && e.amount > 0);
+        } else if (Array.isArray(json.ops)) {
+          // совместимость со старой версией: опция "кто должен → кому" превращаем в покупку
+          expenses = json.ops.map(op => ({
+            id: op.id ? String(op.id) : uid(),
+            ts: Number(op.ts) || Date.now(),
+            date: op.date ? String(op.date) : nowIso(),
+            payer: String(op.to || ""),
+            amount: round2(op.amount || 0),
+            reason: op.reason ? String(op.reason) : "",
+            category: op.category ? String(op.category) : "",
+            consumers: op.from ? [String(op.from)] : []
+          })).filter(e => e.payer && e.amount > 0);
+        }
+
+        const receipt = typeof json.receipt === "string" ? json.receipt : "";
+        return { people, categories, expenses, receipt };
+      }
+
+      function saveState() {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { }
+      }
+
+      // --- clock ---
+      function tickClock() {
+        const d = new Date();
+        const pad = x => String(x).padStart(2, "0");
+        screenClock.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      }
+      setInterval(tickClock, 250); tickClock();
+
+      // --- amount buffer ---
+      function setAmountBuffer(str) {
+        str = String(str ?? "0");
+        if (str === "" || str === "-") str = "0";
+        str = str.replace(/,/g, ".");
+        // только цифры и точка
+        if (!/^[-0-9.]+$/.test(str)) {
+          str = str.replace(/[^0-9.]/g, "");
+        }
+        const parts = str.split(".");
+        if (parts.length > 2) str = parts[0] + "." + parts.slice(1).join("");
+        if (str.includes(".")) {
+          const [a, b] = str.split(".");
+          str = a + "." + (b || "").slice(0, 2);
+        }
+        // убираем лидирующие нули
+        if (str.startsWith("0") && !str.startsWith("0.")) {
+          str = String(Number(str));
+        }
+        if (str === "NaN" || str === "") str = "0";
+        amountBuffer = str;
+        renderScreen();
+      }
+
+      function getAmount() {
+        const n = Number(amountBuffer.replace(",", "."));
+        return Number.isFinite(n) ? n : 0;
+      }
+
+      function renderScreen(msg) {
+        const value = round2(getAmount());
+        screenAmount.textContent = fmt.format(value);
+        if (msg) {
+          screenLine.textContent = msg;
+        } else {
+          screenLine.textContent = payerSel.value ? `Покупка: ${payerSel.value}` : "Готово к работе";
+        }
+      }
+
+      // --- people & categories ---
+      function renderPeopleAndCategories() {
+        payerSel.innerHTML = "";
+        state.people.forEach(p => {
+          const o = document.createElement("option");
+          o.value = p; o.textContent = p; payerSel.appendChild(o);
+        });
+        if (!payerSel.value && state.people.length) payerSel.value = state.people[0];
+
+        categorySel.innerHTML = "";
+        state.categories.forEach(c => {
+          const o = document.createElement("option");
+          o.value = c; o.textContent = c; categorySel.appendChild(o);
+        });
+        if (!categorySel.value && state.categories.length) categorySel.value = state.categories[0];
+
+        renderConsumersCheckboxes();
+        renderScreen();
+      }
+
+      function renderConsumersCheckboxes() {
+        consumersBox.innerHTML = "";
+        state.people.forEach(name => {
+          const id = `c-${name.replace(/\s+/g, '-')}`;
+          const label = document.createElement("label");
+          label.htmlFor = id;
+          label.innerHTML = `<input id="${id}" type="checkbox" class="consumer-checkbox" data-name="${escapeHtml(name)}" checked> <span>${escapeHtml(name)}</span>`;
+          consumersBox.appendChild(label);
+        });
+      }
+
+      function escapeHtml(str) {
+        return String(str ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function selectedConsumers() {
+        const boxes = Array.from(document.querySelectorAll(".consumer-checkbox"));
+        const chosen = boxes.filter(b => b.checked).map(b => b.getAttribute("data-name"));
+        return chosen.length ? chosen : state.people.slice();
+      }
+
+      // --- expenses ---
+      function addExpense() {
+        const payer = payerSel.value || "";
+        const amount = round2(getAmount());
+        const date = (dateInp.value || "").trim() || nowIso();
+        const category = categorySel.value || "";
+        const reason = reasonInp.value.trim();
+        if (!payer) { renderScreen("Укажи, кто платил"); return; }
+        if (!(amount > 0)) { renderScreen("Сумма должна быть > 0"); return; }
+        const consumers = selectedConsumers();
+
+        const exp = { id: uid(), ts: Date.now(), date, payer, amount, category, reason, consumers };
+        state.expenses.push(exp);
+        saveState();
+        printExpense(exp);
+        setAmountBuffer("0");
+        renderAll();
+        renderScreen("Покупка добавлена");
+      }
+
+      function removeExpense(id) {
+        const idx = state.expenses.findIndex(e => e.id === id);
+        if (idx >= 0) {
+          const e = state.expenses[idx];
+          state.expenses.splice(idx, 1);
+          saveState();
+          printLine(`\nУдалена покупка: ${e.payer} — ${fmtRub(e.amount)} (${e.reason || e.category || "без комментария"})\n`);
+          renderAll();
+        }
+      }
+
+      function renderExpenses() {
+        expensesTbody.innerHTML = "";
+        if (!state.expenses.length) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td colspan="6" style="font-size:12px;color:var(--muted);padding:10px 9px;">Пока покупок нет.</td>`;
+          expensesTbody.appendChild(tr);
+          return;
+        }
+        const sorted = [...state.expenses].sort((a, b) => (a.ts || 0) - (b.ts || 0));
+        for (const e of sorted) {
+          const tr = document.createElement("tr");
+          const who = escapeHtml(e.payer);
+          const descr = escapeHtml([e.category, e.reason].filter(Boolean).join(" • ")) || "—";
+          let consumersText;
+          const allNames = state.people.slice().sort();
+          const uniqueConsumers = Array.from(new Set(e.consumers || []));
+          if (uniqueConsumers.length === 0 || uniqueConsumers.length === allNames.length) {
+            consumersText = "все участники";
+          } else {
+            consumersText = uniqueConsumers.join(", ");
+          }
+          tr.innerHTML = `
+          <td class="mono">${escapeHtml(e.date)}</td>
+          <td>${who}</td>
+          <td class="mono right">${fmtRub(e.amount)}</td>
+          <td>${descr}</td>
+          <td>${escapeHtml(consumersText)}</td>
+          <td class="right"><button class="btn btn-sm btn-danger" data-del="${e.id}">✕</button></td>
+        `;
+          expensesTbody.appendChild(tr);
+        }
+        expensesTbody.querySelectorAll("[data-del]").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-del");
+            removeExpense(id);
+          });
+        });
+      }
+
+      // --- balances & settlement ---
+      function calcBalances() {
+        const map = new Map();
+        const ensure = name => {
+          if (!map.has(name)) map.set(name, { name, paid: 0, used: 0, bal: 0 });
+          return map.get(name);
+        };
+
+        state.people.forEach(p => ensure(p));
+
+        for (const e of state.expenses) {
+          const amount = Number(e.amount) || 0; if (!(amount > 0)) continue;
+          const payer = e.payer;
+          let consumers = Array.isArray(e.consumers) && e.consumers.length ? e.consumers.slice() : state.people.slice();
+          consumers = consumers.filter(Boolean);
+          if (consumers.length === 0) consumers = state.people.slice();
+
+          const n = consumers.length; if (!n) continue;
+          const share = round2(amount / n);
+
+          const payerRow = ensure(payer); payerRow.paid = round2(payerRow.paid + amount);
+
+          consumers.forEach(name => {
+            const row = ensure(name);
+            row.used = round2(row.used + share);
+            if (name !== payer) {
+              payerRow.bal = round2(payerRow.bal + share);
+              row.bal = round2(row.bal - share);
+            }
+          });
+        }
+
+        // итоговый список в порядке людей из справочника
+        const res = [];
+        state.people.forEach(p => { if (map.has(p)) res.push(map.get(p)); });
+        for (const [name, row] of map.entries()) {
+          if (!state.people.includes(name)) res.push(row);
+        }
+        return res;
+      }
+
+      function suggestSettlement(balances) {
+        const creditors = balances.filter(x => x.bal > 0.0001).map(x => ({ name: x.name, amt: round2(x.bal) }));
+        const debtors = balances.filter(x => x.bal < -0.0001).map(x => ({ name: x.name, amt: round2(-x.bal) }));
+        creditors.sort((a, b) => b.amt - a.amt);
+        debtors.sort((a, b) => b.amt - a.amt);
+        const res = [];
+        let i = 0, j = 0;
+        while (i < debtors.length && j < creditors.length) {
+          const d = debtors[i], c = creditors[j];
+          const pay = round2(Math.min(d.amt, c.amt));
+          if (pay > 0.0001) {
+            res.push({ from: d.name, to: c.name, amount: pay });
+            d.amt = round2(d.amt - pay);
+            c.amt = round2(c.amt - pay);
+          }
+          if (d.amt <= 0.0001) i++;
+          if (c.amt <= 0.0001) j++;
+        }
+        return res;
+      }
+
+      function renderBalancesAndSettlement() {
+        const balances = calcBalances();
+        const transfers = suggestSettlement(balances);
+
+        balancesBox.innerHTML = "";
+        if (!balances.length) {
+          balancesBox.innerHTML = `<div class="note">Пока никого нет в списке участников.</div>`;
+        } else {
+          const maxAbs = Math.max(1, ...balances.map(b => Math.abs(b.bal)));
+          balances.forEach(b => {
+            const card = document.createElement("div");
+            card.className = "bcard";
+            const status = b.bal > 0.0001 ? "pos" : (b.bal < -0.0001 ? "neg" : "zero");
+            const badgeClass = status === "pos" ? "badge badge-pos" : (status === "neg" ? "badge badge-neg" : "badge badge-zero");
+            const badgeText = status === "pos" ? "Получить" : (status === "neg" ? "Отдать" : "В нуле");
+            const width = Math.round(Math.min(100, Math.abs(b.bal) / maxAbs * 100));
+            card.innerHTML = `
+            <div class="bcard-header">
+              <div class="bcard-name">${escapeHtml(b.name)}</div>
+              <div class="${badgeClass}">${badgeText}</div>
+            </div>
+            <div class="bcard-line">Потратил: <b>${fmtRub(b.paid)}</b></div>
+            <div class="bcard-line">Получил бенефитов: <b>${fmtRub(b.used)}</b></div>
+            <div class="bcard-line">Баланс: <b>${fmtRub(b.bal)}</b></div>
+            <div class="bar-wrap"><div class="bar" style="width:${width}%"></div></div>
+          `;
+            balancesBox.appendChild(card);
+          });
+        }
+
+        const sum = round2(balances.reduce((s, b) => s + b.bal, 0));
+        const totalSpent = round2(state.expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0));
+        if (!state.expenses.length) {
+          summaryNote.textContent = "Пока покупок нет.";
+        } else if (Math.abs(sum) < 0.01) {
+          summaryNote.textContent = `Всего покупок на ${fmtRub(totalSpent)}. Сумма балансов сошлась в ноль (ок).`;
+        } else {
+          summaryNote.textContent = `Всего покупок на ${fmtRub(totalSpent)}. Внимание: сумма балансов = ${fmtRub(sum)} (скорее всего где-то опечатка).`;
+        }
+
+        settlementTbody.innerHTML = "";
+        if (!transfers.length) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td colspan="4" style="font-size:12px;color:var(--muted);padding:9px;">Переводы не нужны — все уже в нуле.</td>`;
+          settlementTbody.appendChild(tr);
+        } else {
+          transfers.forEach(t => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+            <td>${escapeHtml(t.from)}</td>
+            <td>${escapeHtml(t.to)}</td>
+            <td class="mono right">${fmtRub(t.amount)}</td>
+            <td>закрывает часть сальдо</td>
+          `;
+            settlementTbody.appendChild(tr);
+          });
+        }
+      }
+
+      // --- receipt ---
+      function printLine(text) {
+        state.receipt += text;
+        if (state.receipt.length > 20000) {
+          state.receipt = state.receipt.slice(-20000);
+        }
+        saveState();
+        renderReceipt();
+      }
+
+      function receiptHeader(title) {
+        const hr = "-".repeat(32);
+        const d = new Date();
+        const pad = x => String(x).padStart(2, "0");
+        const stamp = `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        return `\n${hr}\n${center(title, 32)}\n${center("КАССА ВЗАИМОРАСЧЁТЫ", 32)}\n${center(stamp, 32)}\n${hr}\n`;
+      }
+
+      function center(s, w) {
+        s = String(s);
+        if (s.length >= w) return s.slice(0, w);
+        const left = Math.floor((w - s.length) / 2);
+        const right = w - s.length - left;
+        return " ".repeat(left) + s + " ".repeat(right);
+      }
+
+      function printExpense(e) {
+        const hr = "-".repeat(32);
+        const consumers = (e.consumers && e.consumers.length) ? e.consumers.join(", ") : "все участники";
+        const body = [
+          receiptHeader("ПОКУПКА"),
+          `Дата: ${e.date}`,
+          `Платил: ${e.payer}`,
+          `Сумма: ${fmtRub(e.amount)}`,
+          `Категория: ${e.category || "—"}`,
+          `Комментарий: ${e.reason || "—"}`,
+          `Делим на: ${consumers}`,
+          hr,
+          center("СПАСИБО", 32),
+          ""
+        ].join("\n");
+        printLine(body);
+      }
+
+      function printSettlementReceipt() {
+        const balances = calcBalances();
+        const transfers = suggestSettlement(balances);
+        const hr = "-".repeat(32);
+        const lines = [];
+        lines.push(receiptHeader("ВЗАИМОЗАЧЁТ"));
+        lines.push("Сальдо (получить/отдать):");
+        balances.forEach(b => {
+          const sign = b.bal > 0.0001 ? "+" : (b.bal < -0.0001 ? "-" : " ");
+          lines.push(`${padRight(b.name, 14)} ${sign}${fmt.format(Math.abs(b.bal))} ₽`);
+        });
+        lines.push(hr);
+        lines.push("Переводы:");
+        if (!transfers.length) {
+          lines.push(center("не нужны", 32));
+        } else {
+          let i = 1;
+          transfers.forEach(t => {
+            const left = `${i}) ${t.from}→${t.to}`;
+            const right = `${fmt.format(t.amount)} ₽`;
+            lines.push(padRight(left, 22) + padLeft(right, 10));
+            i++;
+          });
+        }
+        const sum = round2(balances.reduce((s, b) => s + b.bal, 0));
+        lines.push(hr);
+        lines.push(`Проверка Σ: ${fmt.format(sum)} ₽`);
+        lines.push(hr);
+        lines.push(center("КОНЕЦ ЧЕКА", 32));
+        lines.push("");
+        printLine(lines.join("\n"));
+      }
+
+      function padRight(s, w) { s = String(s); return s.length >= w ? s.slice(0, w) : s + " ".repeat(w - s.length); }
+      function padLeft(s, w) { s = String(s); return s.length >= w ? s.slice(0, w) : " ".repeat(w - s.length) + s; }
+
+      function renderReceipt() {
+        receiptBody.textContent = state.receipt.trimStart();
+        if (!state.receipt) {
+          receiptStats.textContent = "—";
+        } else {
+          const lines = state.receipt.split("\n");
+          receiptStats.textContent = `Строк: ${lines.length} • Символов: ${state.receipt.length}`;
+        }
+        const el = receiptBody.parentElement;
+        el.scrollTop = el.scrollHeight;
+      }
+
+      // --- keypad ---
+      function handleKey(key) {
+        if (key === "C") { setAmountBuffer("0"); return; }
+        if (key === "BS") {
+          if (amountBuffer.length <= 1) { setAmountBuffer("0"); } else { setAmountBuffer(amountBuffer.slice(0, -1)); }
+          return;
+        }
+        if (key === "ENTER") { addExpense(); return; }
+        if (key === "TODAY") { dateInp.value = nowIso(); renderScreen("Дата: сегодня"); return; }
+        if (key === "ALL") {
+          document.querySelectorAll(".consumer-checkbox").forEach(c => c.checked = true);
+          renderScreen("Делим на всех");
+          return;
+        }
+        if (key === "NONE") {
+          document.querySelectorAll(".consumer-checkbox").forEach(c => c.checked = false);
+          renderScreen("Нужно выбрать, на кого делим");
+          return;
+        }
+        if (key === "X2") {
+          const val = getAmount();
+          setAmountBuffer(String(round2(val * 2)));
+          return;
+        }
+        if (key === "." || key === ",") {
+          if (!amountBuffer.includes(".")) setAmountBuffer(amountBuffer + ".");
+          return;
+        }
+        if (/^\d+$/.test(key)) {
+          if (amountBuffer === "0") setAmountBuffer(key);
+          else setAmountBuffer(amountBuffer + key);
+          return;
+        }
+        if (key === "00") {
+          if (amountBuffer === "0") setAmountBuffer("0");
+          else setAmountBuffer(amountBuffer + "00");
+          return;
+        }
+      }
+
+      keypadButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          const k = btn.getAttribute("data-key");
+          handleKey(k);
+        });
+      });
+
+      document.addEventListener("keydown", e => {
+        const active = document.activeElement;
+        const tag = active ? active.tagName.toLowerCase() : "";
+        const inInput = tag === "input" || tag === "textarea" || tag === "select";
+
+        if (e.key === "Enter") {
+          if (!inInput || active === reasonInp || active === dateInp) {
+            e.preventDefault();
+            addExpense();
+          }
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setAmountBuffer("0");
+          return;
+        }
+        if (!inInput) {
+          if (e.key === "Backspace") {
+            e.preventDefault(); handleKey("BS"); return;
+          }
+          if (/^[0-9]$/.test(e.key)) {
+            e.preventDefault(); handleKey(e.key); return;
+          }
+          if (e.key === "," || e.key === ".") {
+            e.preventDefault(); handleKey("."); return;
+          }
+        }
+      });
+
+      // --- buttons ---
+      btnAddPerson.addEventListener("click", () => {
+        const name = newPersonInp.value.trim();
+        if (!name) return;
+        if (state.people.includes(name)) {
+          renderScreen("Такой участник уже есть");
+          return;
+        }
+        state.people.push(name);
+        newPersonInp.value = "";
+        saveState();
+        renderPeopleAndCategories();
+        renderAll();
+        printLine(`\nДобавлен участник: ${name}\n`);
+      });
+
+      btnClearReceipt.addEventListener("click", () => {
+        if (!confirm("Очистить ленту чеков?")) return;
+        state.receipt = ""; saveState(); renderReceipt();
+      });
+
+      btnPrintSettlement.addEventListener("click", () => {
+        printSettlementReceipt();
+      });
+
+      btnClearExpenses.addEventListener("click", () => {
+        if (!state.expenses.length) return;
+        if (!confirm("Удалить все покупки?")) return;
+        state.expenses = []; saveState(); renderAll();
+        printLine(receiptHeader("СБРОС") + "Все покупки удалены.\n");
+      });
+
+      btnDemo.addEventListener("click", () => {
+        const d = nowIso();
+        // пример, соответствующий твоим данным
+        const all = ["Миша", "Дима", "Валерия", "Лёша К.", "Лёша Г."];
+        const ex = [
+          { payer: "Миша", amount: 420 * 5, category: "алкоголь", reason: "алкоголь", consumers: all },
+          { payer: "Дима", amount: 354 * 5, category: "снэки", reason: "чипсы/орешки", consumers: all },
+          { payer: "Лёша Г.", amount: 600 * 3, category: "пицца/еда", reason: "пицца", consumers: ["Миша", "Валерия", "Лёша К."] },
+          { payer: "Дима", amount: 385 * 3, category: "бар/кафе", reason: "бар", consumers: ["Миша", "Валерия", "Лёша Г."] }
+        ];
+        ex.forEach(e => state.expenses.push({ id: uid(), ts: Date.now() + Math.random() * 1000, date: d, payer: e.payer, amount: e.amount, category: e.category, reason: e.reason, consumers: e.consumers.slice() }));
+        saveState();
+        printLine(receiptHeader("ДЕМО") + "Загружен пример по алкоголю/чипсам/пицце/бару.\n");
+        renderAll();
+      });
+
+      // --- render all ---
+      function renderAll() {
+        renderExpenses();
+        renderBalancesAndSettlement();
+        renderReceipt();
+      }
+
+      // init
+      renderPeopleAndCategories();
+      if (!state.receipt) {
+        state.receipt = receiptHeader("СТАРТ") + "Готово к работе.\n";
+        saveState();
+      }
+      setAmountBuffer("0");
+      renderAll();
+    })();
+  </script>
+</body>
+
+</html>
