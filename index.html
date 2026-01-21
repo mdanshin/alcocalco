@@ -705,6 +705,8 @@
       gap: 4px;
       background: rgba(15, 23, 42, .9);
       cursor: pointer;
+      position: relative;
+      transition: border-color .12s ease, color .12s ease;
     }
 
     .consumers-box input {
@@ -1133,7 +1135,14 @@
           const id = `c-${name.replace(/\s+/g, '-')}`;
           const label = document.createElement("label");
           label.htmlFor = id;
-          label.innerHTML = `<input id="${id}" type="checkbox" class="consumer-checkbox" data-name="${escapeHtml(name)}" checked> <span>${escapeHtml(name)}</span>`;
+          label.innerHTML = `
+            <input id="${id}" type="checkbox" class="consumer-checkbox" data-name="${escapeHtml(name)}" checked>
+            <span>${escapeHtml(name)}</span>
+            <span class="chip-actions" aria-hidden="true">
+              <button type="button" class="chip-action edit" data-action="edit" data-name="${escapeHtml(name)}" title="Редактировать">✎</button>
+              <button type="button" class="chip-action delete" data-action="delete" data-name="${escapeHtml(name)}" title="Удалить">✕</button>
+            </span>
+          `;
           consumersBox.appendChild(label);
         });
       }
