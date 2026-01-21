@@ -705,10 +705,62 @@
       gap: 4px;
       background: rgba(15, 23, 42, .9);
       cursor: pointer;
+      position: relative;
+      transition: border-color .12s ease, color .12s ease;
     }
 
     .consumers-box input {
       margin: 0;
+    }
+
+    .consumers-box label:hover {
+      border-color: rgba(148, 163, 184, .9);
+      color: var(--text);
+    }
+
+    .chip-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .12s ease;
+      margin-left: 4px;
+    }
+
+    .consumers-box label:hover .chip-actions {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .chip-action {
+      border: none;
+      background: rgba(148, 163, 184, .15);
+      color: var(--muted);
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 0;
+    }
+
+    .chip-action:hover {
+      color: var(--text);
+      background: rgba(148, 163, 184, .3);
+    }
+
+    .chip-action.delete {
+      color: rgba(248, 113, 113, .95);
+      background: rgba(248, 113, 113, .15);
+    }
+
+    .chip-action.delete:hover {
+      color: #fecaca;
+      background: rgba(248, 113, 113, .3);
     }
 
     .sr-only {
@@ -1092,9 +1144,61 @@
           const id = `c-${name.replace(/\s+/g, '-')}`;
           const label = document.createElement("label");
           label.htmlFor = id;
-          label.innerHTML = `<input id="${id}" type="checkbox" class="consumer-checkbox" data-name="${escapeHtml(name)}" checked> <span>${escapeHtml(name)}</span>`;
+          label.innerHTML = `
+            <input id="${id}" type="checkbox" class="consumer-checkbox" data-name="${escapeHtml(name)}" checked>
+            <span>${escapeHtml(name)}</span>
+            <span class="chip-actions" aria-hidden="true">
+              <button type="button" class="chip-action edit" data-action="edit" data-name="${escapeHtml(name)}" title="Редактировать">✎</button>
+              <button type="button" class="chip-action delete" data-action="delete" data-name="${escapeHtml(name)}" title="Удалить">✕</button>
+            </span>
+          `;
           consumersBox.appendChild(label);
         });
+      }
+
+      function renamePerson(oldName, newName) {
+        const clean = newName.trim();
+        if (!clean) {
+          renderScreen("Имя не может быть пустым");
+          return;
+        }
+        if (clean === oldName) return;
+        if (state.people.includes(clean)) {
+          renderScreen("Такой участник уже есть");
+          return;
+        }
+        state.people = state.people.map(p => (p === oldName ? clean : p));
+        state.expenses.forEach(e => {
+          if (e.payer === oldName) e.payer = clean;
+          if (Array.isArray(e.consumers)) {
+            e.consumers = e.consumers.map(c => (c === oldName ? clean : c));
+          }
+        });
+        saveState();
+        renderPeopleAndCategories();
+        renderAll();
+        printLine(`\nОбновлено имя: ${oldName} → ${clean}\n`);
+      }
+
+      function deletePerson(name) {
+        if (!confirm(`Удалить участника "${name}"?`)) return;
+        state.people = state.people.filter(p => p !== name);
+        const remaining = state.people.slice();
+        state.expenses.forEach(e => {
+          if (e.payer === name) {
+            e.payer = remaining[0] || "";
+          }
+          if (Array.isArray(e.consumers)) {
+            e.consumers = e.consumers.filter(c => c !== name);
+            if (!e.consumers.length && remaining.length) {
+              e.consumers = remaining.slice();
+            }
+          }
+        });
+        saveState();
+        renderPeopleAndCategories();
+        renderAll();
+        printLine(`\nУдалён участник: ${name}\n`);
       }
 
       function escapeHtml(str) {
@@ -1486,6 +1590,26 @@
         renderPeopleAndCategories();
         renderAll();
         printLine(`\nДобавлен участник: ${name}\n`);
+      });
+
+      consumersBox.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        const btn = target.closest("button");
+        if (!btn || !consumersBox.contains(btn)) return;
+        const action = btn.dataset.action;
+        const name = btn.dataset.name;
+        if (!name || !action) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (action === "edit") {
+          const next = prompt("Новое имя участника:", name);
+          if (next === null) return;
+          renamePerson(name, next);
+        }
+        if (action === "delete") {
+          deletePerson(name);
+        }
       });
 
       btnClearReceipt.addEventListener("click", () => {
