@@ -711,6 +711,44 @@
       margin: 0;
     }
 
+    .people-list {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .person-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, .5);
+      background: rgba(15, 23, 42, .9);
+    }
+
+    .person-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .person-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .people-empty {
+      font-size: 11px;
+      color: var(--muted);
+      padding: 6px 8px;
+      border-radius: 12px;
+      border: 1px dashed rgba(148, 163, 184, .5);
+    }
+
     .sr-only {
       position: absolute;
       width: 1px;
@@ -787,6 +825,7 @@
                   <div class="field field-full">
                     <label>На кого делим</label>
                     <div id="consumersBox" class="consumers-box"></div>
+                    <div id="peopleList" class="people-list" aria-live="polite"></div>
                   </div>
                   <div class="field field-full">
                     <label>Быстро добавить участника</label>
@@ -935,6 +974,7 @@
       const categorySel = document.getElementById("categorySel");
       const reasonInp = document.getElementById("reasonInp");
       const consumersBox = document.getElementById("consumersBox");
+      const peopleList = document.getElementById("peopleList");
       const newPersonInp = document.getElementById("newPersonInp");
       const btnAddPerson = document.getElementById("btnAddPerson");
 
@@ -1083,6 +1123,7 @@
         if (!categorySel.value && state.categories.length) categorySel.value = state.categories[0];
 
         renderConsumersCheckboxes();
+        renderPeopleList();
         renderScreen();
       }
 
@@ -1095,6 +1136,94 @@
           label.innerHTML = `<input id="${id}" type="checkbox" class="consumer-checkbox" data-name="${escapeHtml(name)}" checked> <span>${escapeHtml(name)}</span>`;
           consumersBox.appendChild(label);
         });
+      }
+
+      function renderPeopleList() {
+        if (!peopleList) return;
+        peopleList.innerHTML = "";
+        if (!state.people.length) {
+          const empty = document.createElement("div");
+          empty.className = "people-empty";
+          empty.textContent = "Пока нет участников. Добавь первого выше.";
+          peopleList.appendChild(empty);
+          return;
+        }
+        state.people.forEach(name => {
+          const row = document.createElement("div");
+          row.className = "person-row";
+
+          const label = document.createElement("span");
+          label.className = "person-name";
+          label.textContent = name;
+
+          const actions = document.createElement("div");
+          actions.className = "person-actions";
+
+          const editBtn = document.createElement("button");
+          editBtn.type = "button";
+          editBtn.className = "btn btn-sm";
+          editBtn.dataset.action = "edit";
+          editBtn.dataset.name = name;
+          editBtn.textContent = "Редактировать";
+
+          const delBtn = document.createElement("button");
+          delBtn.type = "button";
+          delBtn.className = "btn btn-sm btn-danger";
+          delBtn.dataset.action = "delete";
+          delBtn.dataset.name = name;
+          delBtn.textContent = "Удалить";
+
+          actions.appendChild(editBtn);
+          actions.appendChild(delBtn);
+          row.appendChild(label);
+          row.appendChild(actions);
+          peopleList.appendChild(row);
+        });
+      }
+
+      function renamePerson(oldName, newName) {
+        const clean = newName.trim();
+        if (!clean) {
+          renderScreen("Имя не может быть пустым");
+          return;
+        }
+        if (clean === oldName) return;
+        if (state.people.includes(clean)) {
+          renderScreen("Такой участник уже есть");
+          return;
+        }
+        state.people = state.people.map(p => (p === oldName ? clean : p));
+        state.expenses.forEach(e => {
+          if (e.payer === oldName) e.payer = clean;
+          if (Array.isArray(e.consumers)) {
+            e.consumers = e.consumers.map(c => (c === oldName ? clean : c));
+          }
+        });
+        saveState();
+        renderPeopleAndCategories();
+        renderAll();
+        printLine(`\nОбновлено имя: ${oldName} → ${clean}\n`);
+      }
+
+      function deletePerson(name) {
+        if (!confirm(`Удалить участника "${name}"?`)) return;
+        state.people = state.people.filter(p => p !== name);
+        const remaining = state.people.slice();
+        state.expenses.forEach(e => {
+          if (e.payer === name) {
+            e.payer = remaining[0] || "";
+          }
+          if (Array.isArray(e.consumers)) {
+            e.consumers = e.consumers.filter(c => c !== name);
+            if (!e.consumers.length && remaining.length) {
+              e.consumers = remaining.slice();
+            }
+          }
+        });
+        saveState();
+        renderPeopleAndCategories();
+        renderAll();
+        printLine(`\nУдалён участник: ${name}\n`);
       }
 
       function escapeHtml(str) {
@@ -1487,6 +1616,26 @@
         renderAll();
         printLine(`\nДобавлен участник: ${name}\n`);
       });
+
+      if (peopleList) {
+        peopleList.addEventListener("click", (event) => {
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) return;
+          const btn = target.closest("button");
+          if (!btn || !peopleList.contains(btn)) return;
+          const action = btn.dataset.action;
+          const name = btn.dataset.name;
+          if (!name || !action) return;
+          if (action === "edit") {
+            const next = prompt("Новое имя участника:", name);
+            if (next === null) return;
+            renamePerson(name, next);
+          }
+          if (action === "delete") {
+            deletePerson(name);
+          }
+        });
+      }
 
       btnClearReceipt.addEventListener("click", () => {
         if (!confirm("Очистить ленту чеков?")) return;
