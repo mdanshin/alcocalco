@@ -713,54 +713,42 @@
       margin: 0;
     }
 
-    .consumers-box label:hover {
-      border-color: rgba(148, 163, 184, .9);
-      color: var(--text);
+    .people-list {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
 
-    .chip-actions {
-      display: inline-flex;
+    .person-row {
+      display: flex;
       align-items: center;
-      gap: 4px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .12s ease;
-      margin-left: 4px;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, .5);
+      background: rgba(15, 23, 42, .9);
     }
 
-    .consumers-box label:hover .chip-actions {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .chip-action {
-      border: none;
-      background: rgba(148, 163, 184, .15);
-      color: var(--muted);
-      width: 20px;
-      height: 20px;
-      border-radius: 999px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
+    .person-name {
       font-size: 12px;
-      padding: 0;
-    }
-
-    .chip-action:hover {
+      font-weight: 600;
       color: var(--text);
-      background: rgba(148, 163, 184, .3);
     }
 
-    .chip-action.delete {
-      color: rgba(248, 113, 113, .95);
-      background: rgba(248, 113, 113, .15);
+    .person-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
     }
 
-    .chip-action.delete:hover {
-      color: #fecaca;
-      background: rgba(248, 113, 113, .3);
+    .people-empty {
+      font-size: 11px;
+      color: var(--muted);
+      padding: 6px 8px;
+      border-radius: 12px;
+      border: 1px dashed rgba(148, 163, 184, .5);
     }
 
     .sr-only {
@@ -839,6 +827,7 @@
                   <div class="field field-full">
                     <label>На кого делим</label>
                     <div id="consumersBox" class="consumers-box"></div>
+                    <div id="peopleList" class="people-list" aria-live="polite"></div>
                   </div>
                   <div class="field field-full">
                     <label>Быстро добавить участника</label>
@@ -987,6 +976,7 @@
       const categorySel = document.getElementById("categorySel");
       const reasonInp = document.getElementById("reasonInp");
       const consumersBox = document.getElementById("consumersBox");
+      const peopleList = document.getElementById("peopleList");
       const newPersonInp = document.getElementById("newPersonInp");
       const btnAddPerson = document.getElementById("btnAddPerson");
 
@@ -1135,6 +1125,7 @@
         if (!categorySel.value && state.categories.length) categorySel.value = state.categories[0];
 
         renderConsumersCheckboxes();
+        renderPeopleList();
         renderScreen();
       }
 
@@ -1153,6 +1144,49 @@
             </span>
           `;
           consumersBox.appendChild(label);
+        });
+      }
+
+      function renderPeopleList() {
+        if (!peopleList) return;
+        peopleList.innerHTML = "";
+        if (!state.people.length) {
+          const empty = document.createElement("div");
+          empty.className = "people-empty";
+          empty.textContent = "Пока нет участников. Добавь первого выше.";
+          peopleList.appendChild(empty);
+          return;
+        }
+        state.people.forEach(name => {
+          const row = document.createElement("div");
+          row.className = "person-row";
+
+          const label = document.createElement("span");
+          label.className = "person-name";
+          label.textContent = name;
+
+          const actions = document.createElement("div");
+          actions.className = "person-actions";
+
+          const editBtn = document.createElement("button");
+          editBtn.type = "button";
+          editBtn.className = "btn btn-sm";
+          editBtn.dataset.action = "edit";
+          editBtn.dataset.name = name;
+          editBtn.textContent = "Редактировать";
+
+          const delBtn = document.createElement("button");
+          delBtn.type = "button";
+          delBtn.className = "btn btn-sm btn-danger";
+          delBtn.dataset.action = "delete";
+          delBtn.dataset.name = name;
+          delBtn.textContent = "Удалить";
+
+          actions.appendChild(editBtn);
+          actions.appendChild(delBtn);
+          row.appendChild(label);
+          row.appendChild(actions);
+          peopleList.appendChild(row);
         });
       }
 
@@ -1592,25 +1626,25 @@
         printLine(`\nДобавлен участник: ${name}\n`);
       });
 
-      consumersBox.addEventListener("click", (event) => {
-        const target = event.target;
-        if (!(target instanceof HTMLElement)) return;
-        const btn = target.closest("button");
-        if (!btn || !consumersBox.contains(btn)) return;
-        const action = btn.dataset.action;
-        const name = btn.dataset.name;
-        if (!name || !action) return;
-        event.preventDefault();
-        event.stopPropagation();
-        if (action === "edit") {
-          const next = prompt("Новое имя участника:", name);
-          if (next === null) return;
-          renamePerson(name, next);
-        }
-        if (action === "delete") {
-          deletePerson(name);
-        }
-      });
+      if (peopleList) {
+        peopleList.addEventListener("click", (event) => {
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) return;
+          const btn = target.closest("button");
+          if (!btn || !peopleList.contains(btn)) return;
+          const action = btn.dataset.action;
+          const name = btn.dataset.name;
+          if (!name || !action) return;
+          if (action === "edit") {
+            const next = prompt("Новое имя участника:", name);
+            if (next === null) return;
+            renamePerson(name, next);
+          }
+          if (action === "delete") {
+            deletePerson(name);
+          }
+        });
+      }
 
       btnClearReceipt.addEventListener("click", () => {
         if (!confirm("Очистить ленту чеков?")) return;
