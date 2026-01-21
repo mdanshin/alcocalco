@@ -705,10 +705,68 @@
       gap: 4px;
       background: rgba(15, 23, 42, .9);
       cursor: pointer;
+      position: relative;
+      transition: border-color .12s ease, color .12s ease;
     }
 
     .consumers-box input {
       margin: 0;
+    }
+
+    .consumers-box label:hover {
+      border-color: rgba(148, 163, 184, .9);
+      color: var(--text);
+    }
+
+    .chip-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .12s ease, transform .12s ease;
+      margin-left: 4px;
+      transform: translateY(2px);
+    }
+
+    .consumers-box label:hover .chip-actions {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .chip-action {
+      border: 1px solid rgba(148, 163, 184, .55);
+      background: linear-gradient(135deg, rgba(148, 163, 184, .2), rgba(15, 23, 42, .95));
+      color: rgba(226, 232, 240, .9);
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 1;
+      padding: 0;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, .7);
+      transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
+    }
+
+    .chip-action:hover {
+      border-color: rgba(148, 163, 184, .9);
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(15, 23, 42, .9);
+    }
+
+    .chip-action.delete {
+      color: #fecaca;
+      border-color: rgba(248, 113, 113, .6);
+      background: linear-gradient(135deg, rgba(248, 113, 113, .35), rgba(127, 29, 29, .95));
+    }
+
+    .chip-action.delete:hover {
+      border-color: rgba(248, 113, 113, .95);
     }
 
     .sr-only {
@@ -1092,9 +1150,88 @@
           const id = `c-${name.replace(/\s+/g, '-')}`;
           const label = document.createElement("label");
           label.htmlFor = id;
-          label.innerHTML = `<input id="${id}" type="checkbox" class="consumer-checkbox" data-name="${escapeHtml(name)}" checked> <span>${escapeHtml(name)}</span>`;
+          const input = document.createElement("input");
+          input.id = id;
+          input.type = "checkbox";
+          input.className = "consumer-checkbox";
+          input.dataset.name = name;
+          input.checked = true;
+
+          const text = document.createElement("span");
+          text.textContent = name;
+
+          const actions = document.createElement("span");
+          actions.className = "chip-actions";
+          actions.setAttribute("aria-hidden", "true");
+
+          const editBtn = document.createElement("button");
+          editBtn.type = "button";
+          editBtn.className = "chip-action edit";
+          editBtn.dataset.action = "edit";
+          editBtn.dataset.name = name;
+          editBtn.title = "Редактировать";
+          editBtn.textContent = "✎";
+
+          const delBtn = document.createElement("button");
+          delBtn.type = "button";
+          delBtn.className = "chip-action delete";
+          delBtn.dataset.action = "delete";
+          delBtn.dataset.name = name;
+          delBtn.title = "Удалить";
+          delBtn.textContent = "✕";
+
+          actions.appendChild(editBtn);
+          actions.appendChild(delBtn);
+          label.appendChild(input);
+          label.appendChild(text);
+          label.appendChild(actions);
           consumersBox.appendChild(label);
         });
+      }
+
+      function renamePerson(oldName, newName) {
+        const clean = newName.trim();
+        if (!clean) {
+          renderScreen("Имя не может быть пустым");
+          return;
+        }
+        if (clean === oldName) return;
+        if (state.people.includes(clean)) {
+          renderScreen("Такой участник уже есть");
+          return;
+        }
+        state.people = state.people.map(p => (p === oldName ? clean : p));
+        state.expenses.forEach(e => {
+          if (e.payer === oldName) e.payer = clean;
+          if (Array.isArray(e.consumers)) {
+            e.consumers = e.consumers.map(c => (c === oldName ? clean : c));
+          }
+        });
+        saveState();
+        renderPeopleAndCategories();
+        renderAll();
+        printLine(`\nОбновлено имя: ${oldName} → ${clean}\n`);
+      }
+
+      function deletePerson(name) {
+        if (!confirm(`Удалить участника "${name}"?`)) return;
+        state.people = state.people.filter(p => p !== name);
+        const remaining = state.people.slice();
+        state.expenses.forEach(e => {
+          if (e.payer === name) {
+            e.payer = remaining[0] || "";
+          }
+          if (Array.isArray(e.consumers)) {
+            e.consumers = e.consumers.filter(c => c !== name);
+            if (!e.consumers.length && remaining.length) {
+              e.consumers = remaining.slice();
+            }
+          }
+        });
+        saveState();
+        renderPeopleAndCategories();
+        renderAll();
+        printLine(`\nУдалён участник: ${name}\n`);
       }
 
       function escapeHtml(str) {
@@ -1486,6 +1623,26 @@
         renderPeopleAndCategories();
         renderAll();
         printLine(`\nДобавлен участник: ${name}\n`);
+      });
+
+      consumersBox.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        const btn = target.closest("button");
+        if (!btn || !consumersBox.contains(btn)) return;
+        const action = btn.dataset.action;
+        const name = btn.dataset.name;
+        if (!name || !action) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (action === "edit") {
+          const next = prompt("Новое имя участника:", name);
+          if (next === null) return;
+          renamePerson(name, next);
+        }
+        if (action === "delete") {
+          deletePerson(name);
+        }
       });
 
       btnClearReceipt.addEventListener("click", () => {
