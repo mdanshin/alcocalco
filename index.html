@@ -713,60 +713,42 @@
       margin: 0;
     }
 
-    .consumers-box label:hover {
-      border-color: rgba(148, 163, 184, .9);
+    .people-list {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .person-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, .5);
+      background: rgba(15, 23, 42, .9);
+    }
+
+    .person-name {
+      font-size: 12px;
+      font-weight: 600;
       color: var(--text);
     }
 
-    .chip-actions {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .12s ease, transform .12s ease;
-      margin-left: 4px;
-      transform: translateY(2px);
+    .person-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
     }
 
-    .consumers-box label:hover .chip-actions {
-      opacity: 1;
-      pointer-events: auto;
-      transform: translateY(0);
-    }
-
-    .chip-action {
-      border: 1px solid rgba(148, 163, 184, .55);
-      background: linear-gradient(135deg, rgba(148, 163, 184, .2), rgba(15, 23, 42, .95));
-      color: rgba(226, 232, 240, .9);
-      width: 22px;
-      height: 22px;
-      border-radius: 999px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      font-size: 12px;
-      line-height: 1;
-      padding: 0;
-      box-shadow: 0 8px 18px rgba(15, 23, 42, .7);
-      transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
-    }
-
-    .chip-action:hover {
-      border-color: rgba(148, 163, 184, .9);
-      transform: translateY(-1px);
-      box-shadow: 0 12px 24px rgba(15, 23, 42, .9);
-    }
-
-    .chip-action.delete {
-      color: #fecaca;
-      border-color: rgba(248, 113, 113, .6);
-      background: linear-gradient(135deg, rgba(248, 113, 113, .35), rgba(127, 29, 29, .95));
-    }
-
-    .chip-action.delete:hover {
-      border-color: rgba(248, 113, 113, .95);
+    .people-empty {
+      font-size: 11px;
+      color: var(--muted);
+      padding: 6px 8px;
+      border-radius: 12px;
+      border: 1px dashed rgba(148, 163, 184, .5);
     }
 
     .sr-only {
@@ -845,6 +827,7 @@
                   <div class="field field-full">
                     <label>На кого делим</label>
                     <div id="consumersBox" class="consumers-box"></div>
+                    <div id="peopleList" class="people-list" aria-live="polite"></div>
                   </div>
                   <div class="field field-full">
                     <label>Быстро добавить участника</label>
@@ -993,6 +976,7 @@
       const categorySel = document.getElementById("categorySel");
       const reasonInp = document.getElementById("reasonInp");
       const consumersBox = document.getElementById("consumersBox");
+      const peopleList = document.getElementById("peopleList");
       const newPersonInp = document.getElementById("newPersonInp");
       const btnAddPerson = document.getElementById("btnAddPerson");
 
@@ -1141,6 +1125,7 @@
         if (!categorySel.value && state.categories.length) categorySel.value = state.categories[0];
 
         renderConsumersCheckboxes();
+        renderPeopleList();
         renderScreen();
       }
 
@@ -1150,42 +1135,58 @@
           const id = `c-${name.replace(/\s+/g, '-')}`;
           const label = document.createElement("label");
           label.htmlFor = id;
-          const input = document.createElement("input");
-          input.id = id;
-          input.type = "checkbox";
-          input.className = "consumer-checkbox";
-          input.dataset.name = name;
-          input.checked = true;
+          label.innerHTML = `
+            <input id="${id}" type="checkbox" class="consumer-checkbox" data-name="${escapeHtml(name)}" checked>
+            <span>${escapeHtml(name)}</span>
+            <span class="chip-actions" aria-hidden="true">
+              <button type="button" class="chip-action edit" data-action="edit" data-name="${escapeHtml(name)}" title="Редактировать">✎</button>
+              <button type="button" class="chip-action delete" data-action="delete" data-name="${escapeHtml(name)}" title="Удалить">✕</button>
+            </span>
+          `;
+          consumersBox.appendChild(label);
+        });
+      }
 
-          const text = document.createElement("span");
-          text.textContent = name;
+      function renderPeopleList() {
+        if (!peopleList) return;
+        peopleList.innerHTML = "";
+        if (!state.people.length) {
+          const empty = document.createElement("div");
+          empty.className = "people-empty";
+          empty.textContent = "Пока нет участников. Добавь первого выше.";
+          peopleList.appendChild(empty);
+          return;
+        }
+        state.people.forEach(name => {
+          const row = document.createElement("div");
+          row.className = "person-row";
 
-          const actions = document.createElement("span");
-          actions.className = "chip-actions";
-          actions.setAttribute("aria-hidden", "true");
+          const label = document.createElement("span");
+          label.className = "person-name";
+          label.textContent = name;
+
+          const actions = document.createElement("div");
+          actions.className = "person-actions";
 
           const editBtn = document.createElement("button");
           editBtn.type = "button";
-          editBtn.className = "chip-action edit";
+          editBtn.className = "btn btn-sm";
           editBtn.dataset.action = "edit";
           editBtn.dataset.name = name;
-          editBtn.title = "Редактировать";
-          editBtn.textContent = "✎";
+          editBtn.textContent = "Редактировать";
 
           const delBtn = document.createElement("button");
           delBtn.type = "button";
-          delBtn.className = "chip-action delete";
+          delBtn.className = "btn btn-sm btn-danger";
           delBtn.dataset.action = "delete";
           delBtn.dataset.name = name;
-          delBtn.title = "Удалить";
-          delBtn.textContent = "✕";
+          delBtn.textContent = "Удалить";
 
           actions.appendChild(editBtn);
           actions.appendChild(delBtn);
-          label.appendChild(input);
-          label.appendChild(text);
-          label.appendChild(actions);
-          consumersBox.appendChild(label);
+          row.appendChild(label);
+          row.appendChild(actions);
+          peopleList.appendChild(row);
         });
       }
 
@@ -1625,25 +1626,25 @@
         printLine(`\nДобавлен участник: ${name}\n`);
       });
 
-      consumersBox.addEventListener("click", (event) => {
-        const target = event.target;
-        if (!(target instanceof HTMLElement)) return;
-        const btn = target.closest("button");
-        if (!btn || !consumersBox.contains(btn)) return;
-        const action = btn.dataset.action;
-        const name = btn.dataset.name;
-        if (!name || !action) return;
-        event.preventDefault();
-        event.stopPropagation();
-        if (action === "edit") {
-          const next = prompt("Новое имя участника:", name);
-          if (next === null) return;
-          renamePerson(name, next);
-        }
-        if (action === "delete") {
-          deletePerson(name);
-        }
-      });
+      if (peopleList) {
+        peopleList.addEventListener("click", (event) => {
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) return;
+          const btn = target.closest("button");
+          if (!btn || !peopleList.contains(btn)) return;
+          const action = btn.dataset.action;
+          const name = btn.dataset.name;
+          if (!name || !action) return;
+          if (action === "edit") {
+            const next = prompt("Новое имя участника:", name);
+            if (next === null) return;
+            renamePerson(name, next);
+          }
+          if (action === "delete") {
+            deletePerson(name);
+          }
+        });
+      }
 
       btnClearReceipt.addEventListener("click", () => {
         if (!confirm("Очистить ленту чеков?")) return;
