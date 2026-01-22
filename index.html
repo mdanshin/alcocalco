@@ -699,7 +699,7 @@
       color: var(--muted);
       border-radius: 999px;
       border: 1px solid rgba(148, 163, 184, .7);
-      padding: 4px 8px;
+      padding: 4px 60px 4px 8px;
       display: inline-flex;
       align-items: center;
       gap: 4px;
@@ -708,6 +708,76 @@
       position: relative;
       transition: border-color .12s ease, color .12s ease;
     }
+
+    .chip-actions {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%) translateX(4px);
+      display: inline-flex;
+      gap: 6px;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity .12s ease, transform .12s ease, visibility 0s linear .12s;
+    }
+
+    .chip-action {
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, .55);
+      background: rgba(2, 6, 23, .65);
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      line-height: 1;
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+      box-shadow: 0 10px 26px rgba(0, 0, 0, .55);
+      transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease, color .12s ease;
+    }
+
+    .chip-action:hover {
+      transform: translateY(-1px);
+      border-color: rgba(148, 163, 184, .9);
+      color: var(--text);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, .65);
+    }
+
+    .chip-action:active {
+      transform: translateY(0) scale(.96);
+    }
+
+    .chip-action:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, .35), 0 14px 34px rgba(0, 0, 0, .65);
+      border-color: rgba(56, 189, 248, .85);
+    }
+
+    .chip-action.edit:hover {
+      border-color: rgba(56, 189, 248, .95);
+      background: rgba(56, 189, 248, .14);
+      color: #BAE6FD;
+    }
+
+    .chip-action.delete:hover {
+      border-color: rgba(239, 68, 68, .95);
+      background: rgba(239, 68, 68, .16);
+      color: #FCA5A5;
+    }
+
+    .consumers-box label:hover .chip-actions,
+    .consumers-box label:focus-within .chip-actions {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(-50%) translateX(0);
+      transition-delay: 0s;
+    }
+
 
     .consumers-box input {
       margin: 0;
@@ -741,6 +811,54 @@
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(-1px);
+      transition: opacity .12s ease, transform .12s ease, visibility 0s linear .12s;
+    }
+
+    .person-row:hover .person-actions,
+    .person-row:focus-within .person-actions {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(0);
+      transition-delay: 0s;
+    }
+
+    table.list tbody tr [data-del] {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(-1px);
+      transition: opacity .12s ease, transform .12s ease, visibility 0s linear .12s;
+    }
+
+    table.list tbody tr:hover [data-del],
+    table.list tbody tr:focus-within [data-del] {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(0);
+      transition-delay: 0s;
+    }
+
+    @media (hover: none) {
+      .chip-actions {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateY(-50%) translateX(0);
+      }
+
+      .person-actions,
+      table.list tbody tr [data-del] {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: none;
+      }
     }
 
     .people-empty {
@@ -827,7 +945,6 @@
                   <div class="field field-full">
                     <label>На кого делим</label>
                     <div id="consumersBox" class="consumers-box"></div>
-                    <div id="peopleList" class="people-list" aria-live="polite"></div>
                   </div>
                   <div class="field field-full">
                     <label>Быстро добавить участника</label>
@@ -1308,7 +1425,7 @@
           <td class="mono right">${fmtRub(e.amount)}</td>
           <td>${descr}</td>
           <td>${escapeHtml(consumersText)}</td>
-          <td class="right"><button class="btn btn-sm btn-danger" data-del="${e.id}">✕</button></td>
+          <td class="right"><button class="chip-action delete" title="Удалить покупку" aria-label="Удалить покупку" data-del="${e.id}">✕</button></td>
         `;
           expensesTbody.appendChild(tr);
         }
@@ -1635,6 +1752,33 @@
           const action = btn.dataset.action;
           const name = btn.dataset.name;
           if (!name || !action) return;
+          if (action === "edit") {
+            const next = prompt("Новое имя участника:", name);
+            if (next === null) return;
+            renamePerson(name, next);
+          }
+          if (action === "delete") {
+            deletePerson(name);
+          }
+        });
+      }
+
+      if (consumersBox) {
+        consumersBox.addEventListener("click", (event) => {
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) return;
+
+          const btn = target.closest("button.chip-action");
+          if (!btn || !consumersBox.contains(btn)) return;
+
+          // Кнопки находятся внутри <label>, поэтому предотвращаем переключение чекбокса.
+          event.preventDefault();
+          event.stopPropagation();
+
+          const action = btn.dataset.action;
+          const name = btn.dataset.name;
+          if (!name || !action) return;
+
           if (action === "edit") {
             const next = prompt("Новое имя участника:", name);
             if (next === null) return;
